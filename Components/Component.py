@@ -3,11 +3,9 @@ import pandas as pd
 from OnePort import OnePort
 from TwoPort import TwoPort
 from CircElement import Zload, Resistor, Capacitor
+from copy import deepcopy
 
-# TODO: Store the circuit element as attribute
-# TODO: Update the calc to multiply all previous ABCD matrices.
-
-class Component(OnePort):
+class Component(TwoPort):
     # Give each instance a unique ID
     _ID = 0
     def __init__(self, component=None, id=None, Z0=50.0):
@@ -86,7 +84,9 @@ class Component(OnePort):
         Returns the S11 at the given frequency. The frequency can be a list. First look in the cache. If it is not
         found it is calculated.
         :param freq:    frequency (can be list) in Hz
-        :return:        List of S11, one for every frequency
+        :return:        Depending on the component contained, it either returns:
+                        - TwoPort of the combination of this component up to the load (series)
+                        - None when a OnePort is stored (this is the load)
         '''
 
         # If the frequency is not iterable (has getitem or iter) -> change it into a list
@@ -99,27 +99,29 @@ class Component(OnePort):
             # print('!! No new frequencies to calculate -> return self')
             return self
 
-        # Are we a one-port (load)
+        # Calculate the s parameters of the locally stored component.
+        self.component.calc(freq_not_in_self)
+
         new_data = None
+        # Are we a one-port (load)
         if self.component.nports == 1:
             # print('!! We are the load -> stop calc')
-            new_data = self.component.calc(freq_not_in_self)
+            raise NotImplementedError('Currently it is not possible to add a 1-Port to the Component list')
         elif self.comp_load is not None:
             # print('-> Go into the load')
-            vec_load = self.comp_load.calc(freq_not_in_self)
+            comp_load = self.comp_load.calc(freq_not_in_self)
+            if comp_load is None:
+                # Load is not a TwoPort -> new_data is the locally stored component
+                new_data = self.component
+            else:
+                # The new data is the multiplication of the load matrix and the locally stored component
+                new_data = self.component * comp_load
             # print('<- Returned')
         else:
-            # No component on the load side
-            # print('!! No load found, terminate with Z0')
-            # We are no load -> terminate with the characteristic impedance
-            vec_load = Zload(z=self.Z0)
-            vec_load.calc(freq_not_in_self)
+            # No component on the load side -> return self
+            new_data = self.component
 
-        # Multiply this component with the load impedance
-        if new_data is None:
-            new_data = self.component * vec_load
-
-        # Store the data
+        # Store the data in this component (the multiplication of all previous components)
         # Merge with the current S parameter data
         self._S = pd.concat([self._S, new_data._S])
         # Remove double frequencies -> Keep the original row
@@ -170,6 +172,10 @@ class Component(OnePort):
         :param load_id:     ID of the component at the load side of the newly created component
         :return:            Reference to newly created component
         '''
+        # Test to see whether the component to be added is a TwoPort
+        if component.nports != 2:
+            raise NotImplementedError('Currently it is only possible to add a 2-Port to the Component list')
+
         # Create component when not specified
         comp_new = Component(component=component)
 
@@ -196,13 +202,13 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     # Add load
-    load = Component(component=Zload(z=50.0))
-    rpar = load.add_component(component=Resistor(R=50.0))
+    load = Zload(z=50.0)
+    rpar = Component(component=Resistor(R=50.0))
     rser = rpar.add_component(component=Resistor(R=10.0, series=True))
     rser.add_component(component=Capacitor(C=1e-9, series=True))
 
     print('\nPrint components from load to source:\n')
-    src = load.get_source()
+    src = rpar.get_source()
     print(src)
 
     # Calculate @ 2GHz
@@ -211,17 +217,20 @@ if __name__ == '__main__':
 
     # Iterate
     print('\nNow iterate, Print from source to load\n')
-    head = load.get_source()
+    head = rpar.get_source()
     for comp in head:
         print(comp.z11[1e9])
 
     print('\nCalc for a range of frequencies')
     freq = np.logspace(5, 9, 11)
-    z = src.z11[freq]
-    y = src.y11[freq]
+    src.calc(freq)
+    #load.calc(freq)
+    port_in = src * load
+    z = port_in.z11[freq]
+    y = port_in.y11[freq]
     print(z)
     print(y)
 
-    plt.loglog(freq, np.abs(z))
-    plt.show()
+#    plt.loglog(freq, np.abs(z))
+#    plt.show()
 
