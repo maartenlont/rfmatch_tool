@@ -9,6 +9,7 @@ class OnePort(NPort):
 
         # Create Gamma property
         self.__dict__['gamma'] = DataMatrixDescriptor(self, 'gamma')
+        self.parameter_list += ['gamma']
 
     def get_col_names(self, par_type='s'):
         if par_type == 'gamma':

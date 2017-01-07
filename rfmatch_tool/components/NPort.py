@@ -167,6 +167,9 @@ class NPort(object):
         else:
             self._S = copy.deepcopy(S)
 
+        # list all parameters
+        self.parameter_list = list()
+
         # Create list of ports
         ports = range(1, self.nports+1)
         ports_comb = itertools.product(ports, ports)
@@ -175,6 +178,8 @@ class NPort(object):
         for par_type_ , port_ in itertools.product(['s', 'y', 'z'], ports_comb):
             name = self.get_col_name(port_, par_type=par_type_)
             self.__dict__[name] = DataDescriptor(self, name)
+            # Also add to parameter list
+            self.parameter_list += [name]
 
         # Get S,Y,Z parameter matrix
         self.__dict__['s'] = DataMatrixDescriptor(self, 's')

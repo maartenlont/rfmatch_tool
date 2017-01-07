@@ -18,6 +18,8 @@ class TwoPort(NPort):
         for par_type_ , port_ in itertools.product(['t'], ports_comb):
             name = self.get_col_name(port_, par_type=par_type_)
             self.__dict__[name] = DataDescriptor(self, name)
+            self.parameter_list += [name]
+
         # Get abcd and T parameter matrix
         #self.abcd = DataMatrixDescriptor(self, 'abcd')
         self.__dict__['abcd'] = DataMatrixDescriptor(self, 'abcd')

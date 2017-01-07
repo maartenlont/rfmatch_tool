@@ -37,6 +37,18 @@ class Circuit(QAbstractListModel):
         # Set circuit to point to the source side
         self.circuit = self.circuit.get_source()
 
+    @property
+    def parameter_list(self):
+        try:
+            par_list = self.circuit.parameter_list
+        except:
+            par_list = list()
+
+        par_list += ['zin']
+        par_list += ['gamma']
+
+        return par_list
+
     ################################
     # QAbstractListModel interface #
     ################################
