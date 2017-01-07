@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
-from OnePort import OnePort
-from TwoPort import TwoPort
-from CircElement import Zload, Resistor, Capacitor
-from copy import deepcopy
+
+from .TwoPort import TwoPort
+from .CircElement import Zload, Resistor, Capacitor
+
 
 class Component(TwoPort):
     # Give each instance a unique ID
     _ID = 0
+
     def __init__(self, component=None, id=None, Z0=50.0):
         super(Component, self).__init__(Z0=Z0)
         # Create an ID when needed
@@ -60,7 +61,7 @@ class Component(TwoPort):
 
     ##############################
     # Functions for printing the #
-    # complete circuit.          #
+    # component.                 #
     ##############################
     def __str__(self):
         source = str(self.comp_load)
@@ -71,7 +72,7 @@ class Component(TwoPort):
         for key, value in self.parameters.items():
             comp_str += '\n\t{}: {}'.format(key, value)
 
-        return '{}\n{}'.format(source, comp_str)
+        return comp_str
 
     def __repr__(self):
         return 'Component(component={}, id={})'.format(self.component, self.id)
@@ -132,6 +133,37 @@ class Component(TwoPort):
     ##############################
     # Linked list type operators #
     ##############################
+    def __len__(self):
+        """
+        Return the number of elements
+        :return: (int) Number of elements
+        """
+        src = self.get_source()
+        return src._len_count()
+
+    def _len_count(self):
+        """
+        Count the number of elements on the load side
+        :return: (int) number of elements on the load side (including this component)
+        """
+        if self.comp_load is not None:
+            return self.comp_load._len_count() + 1
+        else:
+            return 1
+
+    def get_index(self, index):
+        """
+        Return the item at the given index. If index=0 return self (required index)
+        :param index:
+        :return:
+        """
+        if index == 0:
+            return self
+        if self.comp_load is not None:
+            return self.comp_load.get_index(index-1)
+        else:
+            raise IndexError('Index not found, max index is: {}'.format(len(self)))
+
     def invalidate(self):
         # Clear the local _S data (our local cache)
         self._S = self.default_matrix()
