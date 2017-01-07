@@ -18,8 +18,6 @@ class Component(TwoPort):
         else:
             self.id = id
 
-        # Dictionary of parameters
-        self.parameters = dict()
         # Set the given component
         if component is None:
             self.component=TwoPort(Z0=self.Z0)
@@ -129,6 +127,24 @@ class Component(TwoPort):
         self._S = self._S[~self._S.index.duplicated(keep='first')]
 
         return new_data
+
+    ##############################
+    # Parameter functions        #
+    ##############################
+    @property
+    def circuit_parameters(self):
+        if self.component is None:
+            return ''
+        else:
+            params = ['{}: {}'.format(key, value) for key,value in self.component.parameters.items()]
+            return '\n'.join(params)
+
+    @property
+    def name(self):
+        if self.component is None:
+            return ''
+        else:
+            return self.component.name
 
     ##############################
     # Linked list type operators #

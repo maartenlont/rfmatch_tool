@@ -17,7 +17,9 @@ class CircElement(TwoPort):
     def __init__(self, freq=1e9, series=False, Z0=50.):
         """Constructor of class CircElement"""
         super(CircElement, self).__init__(Z0=Z0)
-        self.series = series
+
+        # Dictionary of parameters
+        self.parameters = {'series': series}
 
     def calc_z(self, freq):
         return 0.0
@@ -26,9 +28,9 @@ class CircElement(TwoPort):
         """
         Calculate the impedance given frequency freq
         """
-        z = self.calc_z(freq)
+        z = self.Calc_z(freq)
 
-        if self.series:
+        if self.parameters['series']:
             abcd = np.array([1.0, z, 0.0, 1.0], dtype=np.complex_)
         else:  # Parallel connection
             abcd = np.array([1.0, 0.0, 1 / z, 1.0], dtype=np.complex_)
@@ -37,11 +39,11 @@ class CircElement(TwoPort):
 
     def calc(self, freq):
         try:
-            df_list = [self.calc_abcd(freq_) for freq_ in freq]
+            df_list = [self.Calc_abcd(freq_) for freq_ in freq]
             df_abcd = pd.concat(df_list)
         except TypeError:
             # Not itteratable
-            df_abcd = self.calc_abcd(freq)
+            df_abcd = self.Calc_abcd(freq)
 
         # Convert ABCD to S
         df_s = df_abcd.groupby(df_abcd.index).apply(self._ABCD_to_S)
@@ -52,17 +54,29 @@ class CircElement(TwoPort):
 
         return self
 
+    @property
+    def name(self):
+        _name = self.__class__.__name__
+
+        if self.parameters['series']:
+            _name += '_series'
+        else:
+            _name += '_shunt'
+
+        return _name
+
 class Inductor(CircElement):
     def __init__(self, L=1e-9, Q=None, srf=None, *kwargs):
         super(Inductor, self).__init__(*kwargs)
-        # Store local variables
-        self.L = L          # Inductance
-        self.Q = Q          # Quality factor
-        self.srf = srf      # Self resonance frequency
+
+        # Store parameters
+        self.parameters['L'] = L            # Inductance
+        self.parameters['Q'] = Q            # Quality factor
+        self.parameters['srf'] = srf        # Self resonance frequency
 
     # str and repr functions for easy printing
     def __repr__(self):
-        return 'Inductor(L={}, Q={}, srf={}, series={}, Z0={})'.format(self.L, self.Q, self.srf, self.series, self.Z0)
+        return 'Inductor(L={}, Q={}, srf={}, series={}, Z0={})'.format(self.parameters['L'], self.parameters['Q'], self.parameters['srf'], self.parameters['series'], self.Z0)
 
     def __str__(self):
         # Call the super to show the complete linked list
@@ -74,19 +88,19 @@ class Inductor(CircElement):
         """Calculate the effective impedance at the set frequency"""
         w = 2*pi * freq
         # Calculate the series resistance
-        if self.Q is None:
+        if self.parameters['Q'] is None:
             rs = 0.
         else:
-            rs = w*self.L / self.Q
+            rs = w*self.parameters['L'] / self.parameters['Q']
 
         # Calculate the parallel capacitance
-        if self.srf is None:
+        if self.parameters['srf'] is None:
             y_cpar = 0
         else:
-            cpar = 1 / ((2*pi*self.srf)**2 * self.L)
+            cpar = 1 / ((2*pi*self.parameters['srf'])**2 * self.parameters['L'])
             y_cpar = 1j*w * cpar
 
-        zl = 1j*w*self.L        # Only the inductor
+        zl = 1j*w*self.parameters['L']        # Only the inductor
         yl = 1/(zl + rs)        # Inductor in series with DC resistance
         z = 1/(yl+y_cpar)       # Complete inductor with res and src cap
 
@@ -96,13 +110,13 @@ class Capacitor(CircElement):
     def __init__(self, C=1e-9, Q=None, srf=None, series=False, *kwargs):
         super(Capacitor, self).__init__(series=False, *kwargs)
         # Store local variables
-        self.C = C          # Capacitance
-        self.Q = Q          # Quality factor
-        self.srf = srf      # Self resonance frequency
+        self.parameters['C'] = C          # Capacitance
+        self.parameters['Q'] = Q          # Quality factor
+        self.parameters['srf'] = srf      # Self resonance frequency
 
     # str and repr functions for easy printing
     def __repr__(self):
-        return 'Capacitor(C={}, Q={}, srf={}, series={}, Z0={})'.format(self.C, self.Q, self.srf, self.series, self.Z0)
+        return 'Capacitor(C={}, Q={}, srf={}, series={}, Z0={})'.format(self.parameters['C'], self.parameters['Q'], self.parameters['srf'], self.parameters['series'], self.Z0)
 
     def __str__(self):
         # Call the super to show the complete linked list
@@ -114,19 +128,19 @@ class Capacitor(CircElement):
         """Calculate the effective impedance at the set frequency"""
         w = 2*pi*freq
         # Calculate the series resistance
-        if self.Q is None:
+        if self.parameters['Q'] is None:
             rs = 0.
         else:
-            rs = w*self.C / self.Q
+            rs = w*self.parameters['C'] / self.parameters['Q']
 
         # Calculate the parallel capacitance
-        if self.srf is None:
+        if self.parameters['srf'] is None:
             z_lser = 0
         else:
-            lser = 1 / ((2*pi*self.srf)**2 * self.C)
+            lser = 1 / ((2*pi*self.parameters['srf'])**2 * self.parameters['C'])
             z_lser = 1j*w * lser
 
-        yc = 1j*w*self.C        # Only the capacitor
+        yc = 1j*w*self.parameters['C']        # Only the capacitor
         z = z_lser + rs + 1/yc  # Complete capacitor with res and series inductor
 
         return z
@@ -135,11 +149,11 @@ class Resistor(CircElement):
     def __init__(self, R=50., series=False, *kwargs):
         super(Resistor, self).__init__(series=series, *kwargs)
         # Store local variables
-        self.R = R          # Resistance
+        self.parameters['R'] = R          # Resistance
 
     # str and repr functions for easy printing
     def __repr__(self):
-        return 'Resistor(R={}, series={}, Z0={})'.format(self.R, self.series, self.Z0)
+        return 'Resistor(R={}, series={}, Z0={})'.format(self.parameters['R'], self.parameters['series'], self.Z0)
 
     def __str__(self):
         # Call the super to show the complete linked list
@@ -149,7 +163,7 @@ class Resistor(CircElement):
     # Overload the calculator
     def calc_z(self, freq=None):
         """Calculate the effective impedance at the set frequency"""
-        return self.R
+        return self.parameters['R']
 
 class Zload(OnePort):
     """Class derived from OnePort, used as parent class for circuit elements.
@@ -157,29 +171,29 @@ class Zload(OnePort):
     def __init__(self, z = 50.0, Z0=50.):
         """Constructor of class CircElement"""
         super(Zload, self).__init__(Z0=Z0)
-        self._z = z
+        self.parameters = {'Z': z}
 
     def calc_z(self, freq):
-        return self._z
+        return self.parameters['Z']
 
     def calc_z11(self, freq):
         """
         Calculate the impedance given frequency freq
         """
-        z11 = self.calc_z(freq)
+        z11 = self.Calc_z(freq)
 
         return pd.DataFrame(data = [z11], columns=['z11'], index=[freq])
 
     def calc(self, freq):
         try:
-            df_list = [self.calc_z11(freq_) for freq_ in freq]
+            df_list = [self.Calc_z11(freq_) for freq_ in freq]
             df_z = pd.concat(df_list)
         except TypeError:
             # Not itteratable
-            df_z = self.calc_z(freq)
+            df_z = self.Calc_z(freq)
 
         # Convert Z to S
-        df_s = df_z.groupby(df_z.index).apply(self._Z_to_S)
+        df_s = df_z.groupby(df_z.index).apply(self.Z_to_S)
         # Merge with the current S parameter data
         self._S = pd.concat([self._S, df_s])
         # Remove double frequencies -> Keep the original row
@@ -194,13 +208,17 @@ class Zload(OnePort):
         return self.__repr__()
 
     def __repr__(self):
-        return 'Zload(z={}, Z0={})'.format(self._z, self.Z0)
+        return 'Zload(z={}, Z0={})'.format(self.parameters['Z'], self.Z0)
+
+    @property
+    def name(self):
+        return 'zload'
 
 
 class TLine(CircElement):
     def __init__(self, l=100e-6, alpha=0, eps_r=1.0, mu_r=1.0, Z0=50.0, *kwargs):
         super(TLine, self).__init__(*kwargs)
-        self.l = l
+        self.parameters['L'] = l
         self.alpha  = alpha
         self.eps_r  = eps_r
         self.mu_r   = mu_r
@@ -219,10 +237,10 @@ class TLine(CircElement):
         gamma = complex(self.alpha, beta)
 
         # Calculate ABCD matrix
-        A = np.cosh(gamma * self.l)
-        B = np.sinh(gamma * self.l) * self.Z0
-        C = np.sinh(gamma * self.l) / self.Z0
-        D = np.cosh(gamma * self.l)
+        A = np.cosh(gamma * self.parameters['L'])
+        B = np.sinh(gamma * self.parameters['L']) * self.Z0
+        C = np.sinh(gamma * self.parameters['L']) / self.Z0
+        D = np.cosh(gamma * self.parameters['L'])
 
         return pd.DataFrame(data = [[A, B, C, D]], columns=['A', 'B', 'C', 'D'], index=[freq])
 
@@ -288,7 +306,7 @@ class DataPort(TwoPort):
             freq_scaler = 1e9
 
         # Z0
-        self._Z0 = float(options[4])
+        self.Z0 = float(options[4])
 
         # Loop through the file
         line = fh.readline()
@@ -302,7 +320,7 @@ class DataPort(TwoPort):
             # Save the frequency information
             self.freq += [data_line[0] * freq_scaler]
             # Create empty value list (only used for loadpull)
-            self.loadpull_values += [0.0]
+            self.Loadpull_values += [0.0]
 
             # Convert read data to complex(real, imag)
             if options[2] == 'db':
@@ -313,7 +331,7 @@ class DataPort(TwoPort):
                 val_complex = np.array(data_line[1::2]) + 1j * np.array(data_line[2::2])
 
             # Save data as NPORT
-            self.port_data += [TwoPort.TwoPort(Z0=self._Z0)]
+            self.port_data += [TwoPort.TwoPort(Z0=self.Z0)]
             if options[1] == 'z':
                 self.port_data[-1].Z = np.matrix(np.reshape(val_complex, (2, 2)).transpose())
             elif options[1] == 'y':
@@ -335,12 +353,12 @@ class DataPort(TwoPort):
         gamma = complex(self.alpha, self.beta)
 
         # Calculate ABCD matrix
-        A = np.cosh(gamma * self.l)
-        B = np.sinh(gamma * self.l) * self.Z0
-        C = np.sinh(gamma * self.l) / self.Z0
-        D = np.cosh(gamma * self.l)
+        A = np.cosh(gamma * self.parameters['L'])
+        B = np.sinh(gamma * self.parameters['L']) * self.Z0
+        C = np.sinh(gamma * self.parameters['L']) / self.Z0
+        D = np.cosh(gamma * self.parameters['L'])
 
-        port = TwoPort(Z0 = self._Z0)
+        port = TwoPort(Z0 = self.Z0)
         port.ABCD = np.array([ [A, B], [C, D] ])
         return port
 

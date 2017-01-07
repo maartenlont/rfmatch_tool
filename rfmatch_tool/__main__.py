@@ -1,6 +1,8 @@
 import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtCore import QSize
+from PyQt5.QtGui import *
 
 from gui.main_window import Ui_MainWindow
 from components.Circuit import Circuit
@@ -14,6 +16,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Connect the circuit list
         self.circuit = Circuit()
         self.listView.setModel(self.circuit)
+#        self.listView.setIconSize(QSize(125,150))
+        self.listView.setIconSize(QSize(75,90))
 
 def main():
     app = QApplication(sys.argv)

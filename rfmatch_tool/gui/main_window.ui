@@ -31,7 +31,6 @@
           <height>0</height>
          </size>
         </property>
-        <zorder>verticalLayoutWidget</zorder>
        </widget>
       </item>
       <item>
@@ -189,8 +188,17 @@
         <property name="maximumSize">
          <size>
           <width>16777215</width>
-          <height>150</height>
+          <height>125</height>
          </size>
+        </property>
+        <property name="flow">
+         <enum>QListView::LeftToRight</enum>
+        </property>
+        <property name="isWrapping" stdset="0">
+         <bool>false</bool>
+        </property>
+        <property name="viewMode">
+         <enum>QListView::IconMode</enum>
         </property>
        </widget>
       </item>
