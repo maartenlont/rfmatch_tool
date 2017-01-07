@@ -28,7 +28,7 @@ class CircElement(TwoPort):
         """
         Calculate the impedance given frequency freq
         """
-        z = self.Calc_z(freq)
+        z = self.calc_z(freq)
 
         if self.parameters['series']:
             abcd = np.array([1.0, z, 0.0, 1.0], dtype=np.complex_)
@@ -39,7 +39,7 @@ class CircElement(TwoPort):
 
     def calc(self, freq):
         try:
-            df_list = [self.Calc_abcd(freq_) for freq_ in freq]
+            df_list = [self.calc_abcd(freq_) for freq_ in freq]
             df_abcd = pd.concat(df_list)
         except TypeError:
             # Not itteratable
