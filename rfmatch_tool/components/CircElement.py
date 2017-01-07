@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
-from TwoPort import TwoPort
-from OnePort import OnePort
 from math import pi
 import scipy.constants as Const
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+
+from .TwoPort import TwoPort
+from .OnePort import OnePort
 
 class CircElement(TwoPort):
+    # Store the component type
+    _elem_type = 'CircElement'
+
     """Class derived from TwoPort, used as parent class for circuit elements.
         Implements methods to convert the series/parallel impedance to an ABCD matrix."""
     def __init__(self, freq=1e9, series=False, Z0=50.):
@@ -182,6 +186,16 @@ class Zload(OnePort):
         self._S = self._S[~self._S.index.duplicated(keep='first')]
 
         return self
+
+    ##############################
+    # Functions for printing     #
+    ##############################
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return 'Zload(z={}, Z0={})'.format(self._z, self.Z0)
+
 
 class TLine(CircElement):
     def __init__(self, l=100e-6, alpha=0, eps_r=1.0, mu_r=1.0, Z0=50.0, *kwargs):

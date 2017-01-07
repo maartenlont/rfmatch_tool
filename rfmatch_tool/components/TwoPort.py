@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from NPort import NPort, DataDescriptor, DataMatrixDescriptor, _to_flat_matrix
-from OnePort import OnePort
+from .NPort import NPort, DataDescriptor, DataMatrixDescriptor, _to_flat_matrix
+from .OnePort import OnePort
 import itertools
 
 class TwoPort(NPort):

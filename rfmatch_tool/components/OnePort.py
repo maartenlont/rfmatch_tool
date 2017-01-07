@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from NPort import NPort, DataMatrixDescriptor, _to_flat_matrix
+from .NPort import NPort, DataMatrixDescriptor, _to_flat_matrix
 
 class OnePort(NPort):
     def __init__(self, freq=None, Z0=50., S=None):
