@@ -66,9 +66,12 @@ class Component(TwoPort):
 
         # Add this component to the string
         comp_str = self.__repr__()
-        # Add the parameters to the print out
-        for key, value in self.parameters.items():
-            comp_str += '\n\t{}: {}'.format(key, value)
+        # Add the parameters to the print out (when we have parameters)
+        try:
+            for key, value in self.parameters.items():
+                comp_str += '\n\t{}: {}'.format(key, value)
+        except:
+            pass
 
         return comp_str
 
