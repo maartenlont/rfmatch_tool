@@ -214,6 +214,14 @@ class Zload(OnePort):
     def name(self):
         return 'zload'
 
+    @property
+    def circuit_parameters(self):
+        try:
+            params = ['{}: {}'.format(key, value) for key,value in self.parameters.items()]
+            return '\n'.join(params)
+        except:
+            return ''
+
 
 class TLine(CircElement):
     def __init__(self, l=100e-6, alpha=0, eps_r=1.0, mu_r=1.0, Z0=50.0, *kwargs):
