@@ -107,8 +107,10 @@ class Component(TwoPort):
         new_data = None
         # Are we a one-port (load)
         if self.component.nports == 1:
+            # We are a one port -> Our local s parameters are meaningless -> keep identity matrices
             # print('!! We are the load -> stop calc')
-            raise NotImplementedError('Currently it is not possible to add a 1-Port to the Component list')
+            # raise NotImplementedError('Currently it is not possible to add a 1-Port to the Component list')
+            new_data = TwoPort(freq=freq, Z0=self.Z0)
         elif self.comp_load is not None:
             # print('-> Go into the load')
             comp_load = self.comp_load.calc(freq_not_in_self)
@@ -184,12 +186,26 @@ class Component(TwoPort):
             raise IndexError('Index not found, max index is: {}'.format(len(self)))
 
     def invalidate(self):
+        """
+        Something changed on my source side. Therefore I will recalculate my local matrix.
+        :return:
+        """
+        print('Component.Invalidate()')
+        # Get a list of frequencies
+        freq_list = self._S.index.values
+        print('\tFrequency list: {}'.format(freq_list))
+
         # Clear the local _S data (our local cache)
         self._S = self.default_matrix()
 
+        # Calculate every frequency
+        self.calc(freq_list)
+
         # Invalidate everything towards the source side
         try:
+            # print('\tWill invalidate my source')
             self.comp_src.invalidate()
+            # print('\tInvalidate my source')
         except AttributeError:
             pass
 
@@ -248,6 +264,37 @@ class Component(TwoPort):
             comp_new = self.comp_load.add_component(component, load_id)
 
         return comp_new
+
+    def remove(self):
+        """
+        Remove this component and tie the source and load together
+        :return:
+        """
+        # Do not allow the load to be removed
+        if self.component.nports == 1:
+            return self
+
+        load = self.comp_load
+        src = self.comp_src
+
+        if self.comp_src is not None:
+            # Set the source to point to my load
+            self.comp_src.comp_load = load
+            # Invalidate everything at the source side
+            self.comp_src.invalidate()
+        if self.comp_load is not None:
+            # Set the load to point to my source
+            self.comp_load.comp_src = src
+
+        # Return the new source
+        if src is not None:
+            newsource = src.get_source()
+        elif self.comp_load is not None:
+            # We have no source, so return the new source
+            newsource = load
+        else:
+            newsource = self
+        return newsource
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

@@ -1,6 +1,7 @@
 # Plotting libraty
 import pyqtgraph as pg
 from pyqtgraph.dockarea import *
+from pyqtgraph.graphicsItems.ROI import CrosshairROI
 
 import numpy as np
 
@@ -57,26 +58,34 @@ class PlotDock(Dock):
         self.__id = self._ID
         self.__class__._ID += 1
 
+        # The max allowed value
+        self._max_y_val = 1e10 #np.finfo(np.float64).max
+
         # Setup the Plot + data
         self._modifier = modifier
         self.index_range = None                         # What data to plot. None=all data
-
-        # Add Plot
-        self.plot_widget = pg.PlotWidget(title=self.data_name)
-        self.addWidget(self.plot_widget)
-        self.curve = None               # Store the curve
-
-        self.update()
 
         # Setup the dock (title)
         self.setTitle(self.data_name)
         self.autoOrient = False
         self.setOrientation('horizontal', force=True)
 
+        # Add Plot area and empty curve
+        self.plot_widget = pg.PlotWidget(title=self.data_name)
+        self.addWidget(self.plot_widget)
+        self.vb = self.plot_widget.plotItem.vb
+        self.curve = None               # Store the curve
+
+        self.update()
+
         self.setup_crosshair()
 
-    def update(self):
-        #self.plot_widget.close()
+    def update(self, data=None):
+        # Set the new data (when given)
+        if data is not None:
+            self.data = data
+
+        # Update the plot itself
         self.plot_widget.plotItem.clear()
         self.update_cache()
         self.plot()
@@ -115,6 +124,12 @@ class PlotDock(Dock):
         self._x_cache = self._x_cache[idx]
         self._y_cache = self._y_cache[idx]
 
+        # Replace infinite
+        idx_posinf = (self._y_cache ==  np.inf)
+        idx_neginf = (self._y_cache == -np.inf)
+        self._y_cache[idx_posinf] = self._max_y_val
+        self._y_cache[idx_neginf] = -self._max_y_val
+
     @property
     def x(self):
         return self._x_cache
@@ -126,17 +141,30 @@ class PlotDock(Dock):
     ########################
     # Cross hair functions #
     ########################
-    def setup_crosshair(self):
-        # cross hair
-        self.vLine = pg.InfiniteLine(angle=90, movable=False)
-        self.hLine = pg.InfiniteLine(angle=0, movable=False)
-        self.plot_widget.addItem(self.vLine, ignoreBounds=True)
-        self.plot_widget.addItem(self.hLine, ignoreBounds=True)
+    def setup_crosshair(self, kind='cross'):
+        """
+        Setup of the cursor. Can select the type of cursor and snapping you want
+        :param kind: Cursor type. Options:
+                        'cross': both vertical and horizontal, snap to nearest point
+                        'horiz': horizontal, snap on y values
+                        'vert': vertical snap on  values
+        :return:
+        """
+        if kind not in ['cross', 'horiz', 'vert']:
+            raise ValueError('Unknown cursor type kind={}'.format(kind))
+
+        # By default the cursors are off
+        self.hLine = None
+        self.vLine = None
+        if kind in ['cross', 'horiz']:
+            self.hLine = pg.InfiniteLine(angle=0, movable=False)
+            self.plot_widget.addItem(self.hLine, ignoreBounds=True)
+        if kind in ['cross', 'vert']:
+            self.vLine = pg.InfiniteLine(angle=90, movable=False)
+            self.plot_widget.addItem(self.vLine, ignoreBounds=True)
 
         # marker
         self.set_marker()
-
-        self.vb = self.plot_widget.plotItem.vb
 
         proxy = pg.SignalProxy(self.plot_widget.scene().sigMouseMoved, rateLimit=2, slot=self.mouseMoved)
         self.plot_widget.scene().sigMouseMoved.connect(self.mouseMoved)
@@ -144,17 +172,26 @@ class PlotDock(Dock):
     def mouseMoved(self, evt):
         pos = evt
         if self.plot_widget.sceneBoundingRect().contains(pos):
+            # Convert the screen coord to the coord inside the plotwidget
             mousePoint = self.vb.mapSceneToView(pos)
-            index = mousePoint.x()
 
+            # Convert the widget-space point from log when needed
+            xdata = mousePoint.x()
             if self.logx:
-                index = 10**index
+                xdata = 10**xdata
 
-            index_snap = self.find_nearest(self.x, index)
-            self.update_marker(index_snap)
+            # Snap the point to the nearest curve point
+            xdata_snap = self.find_nearest(self.x, xdata)
+            self.update_marker(xdata_snap)
 
-            self.vLine.setPos(mousePoint.x())
-            self.hLine.setPos(mousePoint.y())
+            # Update the crosshair
+            snap_x=snap_y=0
+            if self.vLine is not None:
+                self.vLine.setPos(mousePoint.x())
+                snap_x = True
+            if self.hLine is not None:
+                self.hLine.setPos(mousePoint.y())
+                snap_y = True
 
     def set_marker(self):
         ## Set up a marker
@@ -168,10 +205,9 @@ class PlotDock(Dock):
     def reset_marker(self):
         self.curvePoint = pg.CurvePoint(self.curve)
 
-    def update_marker(self, index):
+    def update_marker(self, xdata):
         xnum = len(self.x) #data[None].index.values)
-        xindex = np.argmin(np.abs(self.x - index))
-        xdata = index
+        xindex = np.argmin(np.abs(self.x - xdata))
         ydata_mod = self.y[xindex]
 
         self.curvePoint.setPos((xindex+1)/xnum)

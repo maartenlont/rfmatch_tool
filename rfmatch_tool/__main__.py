@@ -27,7 +27,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Add a dock widget
         self.dock_area.temporary=False      # Dock area is not temporary (fixes bug when the last dock is closed)
-        self.default_dock_setup()
+#        self.default_dock_setup()
 
         # Update all gui elements with the datamodel
         self.update_gui_data()
@@ -35,6 +35,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Connect buttons
         self.pbPlot.clicked.connect(self.add_plot)
         self.pbAddPoints.clicked.connect(self.add_points)
+
+        self.tbCircMin.clicked.connect(self.circ_remove)
 
     def update_gui_data(self):
         """
@@ -74,6 +76,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.dock_update()
 
+    ######################################
+    # Add/Remove/Edit circuit components #
+    ######################################
+    def circ_remove(self):
+        # Get selected circuit elements (only one can be selected)
+        selected = self.lvComponents.selectedIndexes()
+
+        if selected[0].row() > 0: # Do not remove the load (index=0)
+            # Remove it through the model
+            self.circuit.remove_component(selected[0])
+
+            # Update all the plots
+            self.dock_update()
+
+    #######################
+    # Plot dock functions #
+    #######################
     def default_dock_setup(self):
         # Setup the data
         freq = np.logspace(0, 6, 11)
@@ -87,12 +106,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_area.moveDock(d21, 'bottom', d11)
         self.dock_area.moveDock(d22, 'bottom', d12)
 
-    #######################
-    # Plot dock functions #
-    #######################
     def dock_update(self):
         for key, dock in self.plot_docks.items():
-            dock.update()
+            # TODO: Be able to plot based on the selected elements
+            # For now plot the entire circuit (circuit.circuit)
+            parameter = dock.data.varname
+            data = getattr(self.circuit.circuit, parameter, None)
+
+            dock.update(data=data)
 
     def dock_close_event(self, dock_calling):
         if hash(dock_calling) in self.plot_docks:

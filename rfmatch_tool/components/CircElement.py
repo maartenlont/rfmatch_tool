@@ -180,20 +180,20 @@ class Zload(OnePort):
         """
         Calculate the impedance given frequency freq
         """
-        z11 = self.Calc_z(freq)
+        z11 = self.calc_z(freq)
 
         return pd.DataFrame(data = [z11], columns=['z11'], index=[freq])
 
     def calc(self, freq):
         try:
-            df_list = [self.Calc_z11(freq_) for freq_ in freq]
+            df_list = [self.calc_z11(freq_) for freq_ in freq]
             df_z = pd.concat(df_list)
         except TypeError:
             # Not itteratable
-            df_z = self.Calc_z(freq)
+            df_z = self.calc_z(freq)
 
         # Convert Z to S
-        df_s = df_z.groupby(df_z.index).apply(self.Z_to_S)
+        df_s = df_z.groupby(df_z.index).apply(self._Z_to_S)
         # Merge with the current S parameter data
         self._S = pd.concat([self._S, df_s])
         # Remove double frequencies -> Keep the original row
