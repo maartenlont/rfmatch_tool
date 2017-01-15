@@ -65,7 +65,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         x_stop = float(self.sbXstop.value())
         x_num = int(self.sbXnum.value())
 
-        freq = np.linspace(x_start, x_stop, x_num)
+        if self.cbXtype.currentText() == 'Lin':
+            freq = np.linspace(x_start, x_stop, x_num)
+        else:
+            freq = np.logspace(np.log10(x_start), np.log10(x_stop), x_num)
+
         self.circuit.circuit.calc(freq)
 
         self.dock_update()
